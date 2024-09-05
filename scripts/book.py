@@ -17,7 +17,6 @@ BOOK_ICON_URL = "https://www.notion.so/icons/book_gray.svg"
 
 rating = {"poor": "⭐️", "fair": "⭐️⭐️⭐️", "good": "⭐️⭐️⭐️⭐️⭐️"}
 
-
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_douban_url(isbn):
     print(f"get_douban_url {isbn} ")
@@ -41,7 +40,6 @@ def get_douban_url(isbn):
             return None
         return urls[0].get("url")
 
-
 def insert_book_to_notion(books, index, bookId):
     """插入Book到Notion"""
     book = {}
@@ -50,10 +48,9 @@ def insert_book_to_notion(books, index, bookId):
     if bookId in notion_books:
         book.update(notion_books.get(bookId))
     bookInfo = weread_api.get_bookinfo(bookId)
-    if bookInfo != None:
+    if bookInfo is not None:
         book.update(bookInfo)
     readInfo = weread_api.get_read_info(bookId)
-    # 研究了下这个状态不知道什么情况有的虽然读了状态还是1 markedStatus = 1 想读 4 读完 其他为在读
     readInfo.update(readInfo.get("readDetail", {}))
     readInfo.update(readInfo.get("bookInfo", {}))
     book.update(readInfo)
@@ -85,7 +82,7 @@ def insert_book_to_notion(books, index, bookId):
     book["开始阅读时间"] = book.get("beginReadingDate")
     book["最后阅读时间"] = book.get("lastReadingDate")
     cover = book.get("cover").replace("/s_", "/t7_")
-    if not cover and not cover.strip() and not cover.startswith("http"):
+    if not cover or not cover.strip() or not cover.startswith("http"):
         cover = BOOK_ICON_URL
     if bookId not in notion_books:
         isbn = book.get("isbn")
@@ -139,7 +136,6 @@ def insert_book_to_notion(books, index, bookId):
         data = {item.get("readDate"): item.get("readTime") for item in data}
         insert_read_data(page_id, data)
 
-
 def insert_read_data(page_id, readTimes):
     readTimes = dict(sorted(readTimes.items()))
     filter = {"property": "书架", "relation": {"contains": page_id}}
@@ -160,7 +156,6 @@ def insert_read_data(page_id, readTimes):
     for key, value in readTimes.items():
         insert_to_notion(None, int(key), value, page_id)
 
-
 def insert_to_notion(page_id, timestamp, duration, book_database_id):
     parent = {"database_id": notion_helper.read_database_id, "type": "database_id"}
     properties = {
@@ -176,7 +171,7 @@ def insert_to_notion(page_id, timestamp, duration, book_database_id):
         "时间戳": utils.get_number(timestamp),
         "书架": utils.get_relation([book_database_id]),
     }
-    if page_id != None:
+    if page_id is not None:
         notion_helper.client.pages.update(page_id=page_id, properties=properties)
     else:
         notion_helper.client.pages.create(
@@ -185,30 +180,28 @@ def insert_to_notion(page_id, timestamp, duration, book_database_id):
             properties=properties,
         )
 
-
 if __name__ == "__main__":
     weread_api = WeReadApi()
     notion_helper = NotionHelper()
-    notion_books = notion_helper.get_all_book()
     bookshelf_books = weread_api.get_bookshelf()
     target_shelf_name = "ll的书架"  # 实际想要的书架名称
     bookProgress = bookshelf_books.get("bookProgress")
     bookProgress = {book.get("bookId"): book for book in bookProgress}
     archive_dict = {}
-    # 过滤书架信息
+
+    # 获取目标书架的书籍
     filtered_books = []
+    notion_books = notion_helper.get_all_book()
+
     for archive in bookshelf_books.get("archive", []):
         if archive.get("name") == target_shelf_name:
             bookIds = archive.get("bookIds", [])
             filtered_books.extend(bookIds)
-    # 如果只想从特定书架中获取书籍信息，可以这样处理
-    filtered_books_dict = {bookId: notion_books.get(bookId) for bookId in filtered_books if bookId in notion_books}
-    # for archive in bookshelf_books.get("archive"):
-    #     name = archive.get("name")
-    #     bookIds = archive.get("bookIds")
-    #     archive_dict.update({bookId: name for bookId in bookIds})
 
-     # 不需要同步的书籍
+    # 从目标书架中过滤出书籍信息
+    filtered_books_dict = {bookId: notion_books.get(bookId) for bookId in filtered_books if bookId in notion_books}
+
+    # 不需要同步的书籍
     not_need_sync = []
     for key, value in filtered_books_dict.items():
         book_category = value.get("category")
@@ -226,28 +219,9 @@ if __name__ == "__main__":
             )
         ):
             not_need_sync.append(key)
-    # 不需要同步的书籍
-    # not_need_sync = []
-    # for key, value in notion_books.items():
-    #     book_category = value.get("category")
-    #     archive_category = archive_dict.get(key)
-    #     if (
-    #         (
-    #             key not in bookProgress
-    #             or value.get("readingTime") == bookProgress.get(key).get("readingTime")
-    #         )
-    #         and (archive_dict.get(key) == value.get("category"))
-    #         and (value.get("cover") is not None)
-    #         and (
-    #             value.get("status") != "已读"
-    #             or (value.get("status") == "已读" and value.get("myRating"))
-    #         )
-    #     ):
-    #         not_need_sync.append(key)
-    notebooks = weread_api.get_notebooklist()
-    notebooks = [d["bookId"] for d in notebooks if "bookId" in d]
-    books = bookshelf_books.get("books")
-    books = [d["bookId"] for d in books if "bookId" in d]
-    books = list((set(notebooks) | set(books)) - set(not_need_sync))
+
+    # 确保只从过滤后的书籍中获取并插入
+    books = list(filtered_books_dict.keys() - set(not_need_sync))
+    
     for index, bookId in enumerate(books):
         insert_book_to_notion(books, index, bookId)
