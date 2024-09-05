@@ -226,13 +226,18 @@ if __name__ == "__main__":
         ):
             not_need_sync.append(key)
     
+    # 获取 "ll的书架" 的笔记列表
     notebooks = weread_api.get_notebooklist()
     notebooks = [d["bookId"] for d in notebooks if "bookId" in d]
-    books = bookshelf_books.get("books", [])
-    books = [d["bookId"] for d in books if "bookId" in d]
-    books = list((set(notebooks) | set(books)) - set(not_need_sync))
+    
+    # 仅选择 "ll的书架" 中的书籍
+    ll_bookshelf_books = bookshelf_books.get("bookIds", [])
+    
+    # 只同步 "ll的书架" 中的书籍
+    books = list((set(notebooks) | set(ll_bookshelf_books)) - set(not_need_sync))
     
     print("Books to Sync:", books)
     
     for index, bookId in enumerate(books):
         insert_book_to_notion(books, index, bookId)
+
