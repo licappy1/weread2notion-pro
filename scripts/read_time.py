@@ -125,16 +125,23 @@ if __name__ == "__main__":
     # 处理 Notion 中的数据
     results = notion_helper.query_all(database_id=notion_helper.day_database_id)
     print(f"Notion query results: {results}")
+
+    # 先更新已有记录
     for result in results:
         timestamp = result.get("properties").get("时间戳").get("number")
         duration = result.get("properties").get("时长").get("number")
         id = result.get("id")
-        print(f"Processing Notion page ID: {id}, Timestamp: {timestamp}, Duration: {duration}")
-        if timestamp in readTimes:
-            value = readTimes.pop(timestamp)
-            if value != duration:
-                print(f"Updating Notion page ID: {id} with new duration: {value}")
-                insert_to_notion(page_id=id, timestamp=timestamp, duration=value)
+        book_id = result.get("properties").get("书籍").get("relation", [{}])[0].get("id")
+
+        if book_id in ll_bookshelf_books:  # 只更新 ll 的书架中的书籍
+            print(f"Processing Notion page ID: {id}, Timestamp: {timestamp}, Duration: {duration}")
+            if timestamp in readTimes:
+                value = readTimes.pop(timestamp)
+                if value != duration:
+                    print(f"Updating Notion page ID: {id} with new duration: {value}")
+                    insert_to_notion(page_id=id, timestamp=timestamp, duration=value)
+    
+    # 插入新记录
     for key, value in readTimes.items():
         if any(key in ll_bookshelf_books):
             print(f"Inserting new Notion page with timestamp: {key}, Duration: {value}")
