@@ -228,14 +228,14 @@ if __name__ == "__main__":
     # 提取 "ll的书架" 中的书籍，并去重
     # 获取所有笔记本中的书籍列表
     notebooks = weread_api.get_notebooklist()
-    notebooks_in_ll_bookshelf = set(d["bookId"] for d in notebooks if "bookId" in d and d["bookId"] in ll_bookshelf_books)
     # 仅同步 "ll的书架" 中的书籍
-    books = list(set(notebooks_in_ll_bookshelf) - set(not_need_sync))
+    books = list(ll_bookshelf_books - set(not_need_sync))
     # 检查重复情况
+    # 打印书架中的所有书籍
+    print("All Books in 'll的书架':", ll_bookshelf_books)
     print(f"去重后的书籍数量: {len(books)}")
     print("Books to Sync:", books)
 
     # 插入书籍到 Notion
     for index, bookId in enumerate(books):
         insert_book_to_notion(books, index, bookId)
-
