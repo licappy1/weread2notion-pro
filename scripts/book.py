@@ -191,21 +191,34 @@ if __name__ == "__main__":
     notion_helper = NotionHelper()
     notion_books = notion_helper.get_all_book()
     bookshelf_books = weread_api.get_bookshelf()
+    target_shelf_name = "ll的书架"  # 实际想要的书架名称
     bookProgress = bookshelf_books.get("bookProgress")
     bookProgress = {book.get("bookId"): book for book in bookProgress}
     archive_dict = {}
-    for archive in bookshelf_books.get("archive"):
-        name = archive.get("name")
-        bookIds = archive.get("bookIds")
-        archive_dict.update({bookId: name for bookId in bookIds})
+    # 过滤书架信息
+    filtered_books = []
+    for archive in bookshelf_books.get("archive", []):
+        if archive.get("name") == target_shelf_name:
+            bookIds = archive.get("bookIds", [])
+            filtered_books.extend(bookIds)
+    # 如果只想从特定书架中获取书籍信息，可以这样处理
+    filtered_books_dict = {bookId: notion_books.get(bookId) for bookId in filtered_books if bookId in notion_books}
+    # for archive in bookshelf_books.get("archive"):
+    #     name = archive.get("name")
+    #     bookIds = archive.get("bookIds")
+    #     archive_dict.update({bookId: name for bookId in bookIds})
+
+     # 不需要同步的书籍
     not_need_sync = []
-    for key, value in notion_books.items():
+    for key, value in filtered_books_dict.items():
+        book_category = value.get("category")
+        archive_category = archive_dict.get(key)
         if (
             (
                 key not in bookProgress
                 or value.get("readingTime") == bookProgress.get(key).get("readingTime")
             )
-            and (archive_dict.get(key) == value.get("category"))
+            and (archive_category == book_category)
             and (value.get("cover") is not None)
             and (
                 value.get("status") != "已读"
@@ -213,6 +226,24 @@ if __name__ == "__main__":
             )
         ):
             not_need_sync.append(key)
+    # 不需要同步的书籍
+    # not_need_sync = []
+    # for key, value in notion_books.items():
+    #     book_category = value.get("category")
+    #     archive_category = archive_dict.get(key)
+    #     if (
+    #         (
+    #             key not in bookProgress
+    #             or value.get("readingTime") == bookProgress.get(key).get("readingTime")
+    #         )
+    #         and (archive_dict.get(key) == value.get("category"))
+    #         and (value.get("cover") is not None)
+    #         and (
+    #             value.get("status") != "已读"
+    #             or (value.get("status") == "已读" and value.get("myRating"))
+    #         )
+    #     ):
+    #         not_need_sync.append(key)
     notebooks = weread_api.get_notebooklist()
     notebooks = [d["bookId"] for d in notebooks if "bookId" in d]
     books = bookshelf_books.get("books")
