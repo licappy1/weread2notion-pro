@@ -189,14 +189,14 @@ if __name__ == "__main__":
     notion_helper = NotionHelper()
     notion_books = notion_helper.get_all_book()
     bookshelf_books = weread_api.get_bookshelf()
+
+    # 只获取 'll' 书架的书籍
+    ll_shelf = next((shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll"), None)
     
-    # 只获取指定书架的书籍
-    bookshelf_books = [shelf for shelf in bookshelf_books.get("archive") if shelf.get("name") == "ll的书架"]
-    if bookshelf_books:
-        bookshelf_books = bookshelf_books[0]
-        bookProgress = bookshelf_books.get("bookProgress")
-        bookProgress = {book.get("bookId"): book for book in bookProgress}
-        archive_dict = {bookId: bookshelf_books.get("name") for bookId in bookshelf_books.get("bookIds")}
+    if ll_shelf:
+        bookProgress = ll_shelf.get("bookProgress", {})
+        bookProgress = {book.get("bookId"): book for book in (bookProgress or [])}
+        archive_dict = {bookId: ll_shelf.get("name") for bookId in ll_shelf.get("bookIds", [])}
     else:
         bookProgress = {}
         archive_dict = {}
@@ -219,9 +219,10 @@ if __name__ == "__main__":
     
     notebooks = weread_api.get_notebooklist()
     notebooks = [d["bookId"] for d in notebooks if "bookId" in d]
-    books = bookshelf_books.get("books")
+    books = bookshelf_books.get("books", [])
     books = [d["bookId"] for d in books if "bookId" in d]
     books = list((set(notebooks) | set(books)) - set(not_need_sync))
     
     for index, bookId in enumerate(books):
         insert_book_to_notion(books, index, bookId)
+
