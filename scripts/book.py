@@ -191,7 +191,7 @@ if __name__ == "__main__":
     bookshelf_books = weread_api.get_bookshelf()
 
     # 只获取 'll' 书架的书籍
-    ll_shelf = next((shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll"), None)
+    ll_shelf = next((shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll的书架"), None)
     
     if ll_shelf:
         bookProgress = ll_shelf.get("bookProgress", {})
