@@ -230,12 +230,14 @@ if __name__ == "__main__":
     notebooks = weread_api.get_notebooklist()
     notebooks_in_ll_bookshelf = [d["bookId"] for d in notebooks if "bookId" in d and d["bookId"] in ll_bookshelf_books]
 
-    # 仅同步 "ll的书架" 中的书籍
-    books = list(set(notebooks_in_ll_bookshelf) - set(not_need_sync))
+    # 仅同步 "ll的书架" 中的书籍，包括不在笔记本中的书籍
+    books_to_sync = list(ll_bookshelf_books - set(not_need_sync))
+    books_to_sync.extend(list(set(notebooks_in_ll_bookshelf) - set(not_need_sync)))
 
-    print("Books to Sync:", books)
+    print("Books to Sync:", books_to_sync)
 
     # 插入书籍到 Notion
-    for index, bookId in enumerate(books):
-        insert_book_to_notion(books, index, bookId)
+    for index, bookId in enumerate(books_to_sync):
+        insert_book_to_notion(books_to_sync, index, bookId)
+
 
