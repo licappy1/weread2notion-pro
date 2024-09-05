@@ -193,30 +193,27 @@ if __name__ == "__main__":
     # 打印获取到的书架数据
     print("Bookshelf Books:", bookshelf_books)
 
-    # 只获取指定书架的书籍
-    bookshelf_shelves = [shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll的书架"]
-    
-    if bookshelf_shelves:
-        bookshelf_books = bookshelf_shelves[0]
-        print("Selected Bookshelf:", bookshelf_books)  # 打印选中的书架信息
+    # 获取名为 "ll的书架" 的书籍
+    ll_bookshelf = next((shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll的书架"), None)
 
-        bookProgress = bookshelf_books.get("bookProgress", [])
+    if ll_bookshelf:
+        print("Selected Bookshelf:", ll_bookshelf)  # 打印选中的书架信息
+
+        bookProgress = ll_bookshelf.get("bookProgress", [])
         bookProgress = {book.get("bookId"): book for book in bookProgress}
-        archive_dict = {bookId: bookshelf_books.get("name") for bookId in bookshelf_books.get("bookIds")}
+        archive_dict = {bookId: ll_bookshelf.get("name") for bookId in ll_bookshelf.get("bookIds", [])}
     else:
         bookProgress = {}
         archive_dict = {}
-    
+
     print("Book Progress:", bookProgress)
     print("Archive Dict:", archive_dict)
-    
+
+    # 获取 "ll的书架" 中不需要同步的书籍
     not_need_sync = []
     for key, value in notion_books.items():
         if (
-            (
-                key not in bookProgress
-                or value.get("readingTime") == bookProgress.get(key, {}).get("readingTime")
-            )
+            (key not in bookProgress or value.get("readingTime") == bookProgress.get(key, {}).get("readingTime"))
             and (archive_dict.get(key) == value.get("category"))
             and (value.get("cover") is not None)
             and (
@@ -225,19 +222,20 @@ if __name__ == "__main__":
             )
         ):
             not_need_sync.append(key)
-    
-    # 获取 "ll的书架" 的笔记列表
+
+    # 获取 "ll的书架" 中的书籍
+    ll_bookshelf_books = set(ll_bookshelf.get("bookIds", []))
+
+    # 获取所有笔记本中的书籍列表
     notebooks = weread_api.get_notebooklist()
-    notebooks = [d["bookId"] for d in notebooks if "bookId" in d]
-    
-    # 仅选择 "ll的书架" 中的书籍
-    ll_bookshelf_books = bookshelf_books.get("bookIds", [])
-    
-    # 只同步 "ll的书架" 中的书籍
-    books = list((set(notebooks) | set(ll_bookshelf_books)) - set(not_need_sync))
-    
+    notebooks_in_ll_bookshelf = [d["bookId"] for d in notebooks if "bookId" in d and d["bookId"] in ll_bookshelf_books]
+
+    # 仅同步 "ll的书架" 中的书籍
+    books = list(set(notebooks_in_ll_bookshelf) - set(not_need_sync))
+
     print("Books to Sync:", books)
-    
+
+    # 插入书籍到 Notion
     for index, bookId in enumerate(books):
         insert_book_to_notion(books, index, bookId)
 
