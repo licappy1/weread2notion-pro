@@ -235,6 +235,14 @@ if __name__ == "__main__":
     print("All Books in 'll的书架':", ll_bookshelf_books)
     print(f"去重后的书籍数量: {len(books)}")
     print("Books to Sync:", books)
+    print("Notion Books:", notion_books)
+    print("Book Progress:", bookProgress)
+    for key, value in notion_books.items():
+        print(f"Checking book {key}:")
+        print(f"  Reading Time: {value.get('readingTime')} == {bookProgress.get(key, {}).get('readingTime')}")
+        print(f"  Archive Dict Category: {archive_dict.get(key)} == {value.get('category')}")
+        print(f"  Cover: {value.get('cover')}")
+        print(f"  Status: {value.get('status')} and My Rating: {value.get('myRating')}")
 
     # 插入书籍到 Notion
     for index, bookId in enumerate(books):
