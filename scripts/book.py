@@ -190,23 +190,32 @@ if __name__ == "__main__":
     notion_books = notion_helper.get_all_book()
     bookshelf_books = weread_api.get_bookshelf()
 
-    # 只获取 'll' 书架的书籍
-    ll_shelf = next((shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll的书架"), None)
+    # 打印获取到的书架数据
+    print("Bookshelf Books:", bookshelf_books)
+
+    # 只获取指定书架的书籍
+    bookshelf_shelves = [shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll的书架"]
     
-    if ll_shelf:
-        bookProgress = ll_shelf.get("bookProgress", {})
-        bookProgress = {book.get("bookId"): book for book in (bookProgress or [])}
-        archive_dict = {bookId: ll_shelf.get("name") for bookId in ll_shelf.get("bookIds", [])}
+    if bookshelf_shelves:
+        bookshelf_books = bookshelf_shelves[0]
+        print("Selected Bookshelf:", bookshelf_books)  # 打印选中的书架信息
+
+        bookProgress = bookshelf_books.get("bookProgress", [])
+        bookProgress = {book.get("bookId"): book for book in bookProgress}
+        archive_dict = {bookId: bookshelf_books.get("name") for bookId in bookshelf_books.get("bookIds")}
     else:
         bookProgress = {}
         archive_dict = {}
+    
+    print("Book Progress:", bookProgress)
+    print("Archive Dict:", archive_dict)
     
     not_need_sync = []
     for key, value in notion_books.items():
         if (
             (
                 key not in bookProgress
-                or value.get("readingTime") == bookProgress.get(key).get("readingTime")
+                or value.get("readingTime") == bookProgress.get(key, {}).get("readingTime")
             )
             and (archive_dict.get(key) == value.get("category"))
             and (value.get("cover") is not None)
@@ -223,6 +232,7 @@ if __name__ == "__main__":
     books = [d["bookId"] for d in books if "bookId" in d]
     books = list((set(notebooks) | set(books)) - set(not_need_sync))
     
+    print("Books to Sync:", books)
+    
     for index, bookId in enumerate(books):
         insert_book_to_notion(books, index, bookId)
-
