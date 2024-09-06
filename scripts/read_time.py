@@ -124,7 +124,6 @@ if __name__ == "__main__":
                     readTimes[book_id] = {}
                 readTimes[book_id][int(timestamp)] = duration
 
-
     now = pendulum.now("Asia/Shanghai").start_of("day")
     today_timestamp = now.int_timestamp
 
@@ -136,8 +135,11 @@ if __name__ == "__main__":
 
     print(f"Filtered and sorted reading times: {readTimes}")
 
-    # 处理 Notion 中的数据
+    # 获取 Notion 中现有记录
     results = notion_helper.query_all(database_id=notion_helper.day_database_id)
+
+    # 先收集所有现有时间戳的记录
+    existing_timestamps = {result.get("properties").get("时间戳").get("number") for result in results}
 
     # 先更新已有记录
     for result in results:
@@ -157,6 +159,8 @@ if __name__ == "__main__":
     # 插入新记录
     for book_id, times in readTimes.items():
         for timestamp, value in times.items():
-            print(f"Inserting new Notion page with book_id: {book_id}, timestamp: {timestamp}, Duration: {value}")
-            insert_to_notion(None, int(timestamp), value)
+            if timestamp not in existing_timestamps:
+                print(f"Inserting new Notion page with book_id: {book_id}, timestamp: {timestamp}, Duration: {value}")
+                insert_to_notion(None, int(timestamp), value)
+
 
