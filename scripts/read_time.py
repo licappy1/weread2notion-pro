@@ -114,7 +114,11 @@ if __name__ == "__main__":
     # 获取阅读时长数据
     api_data = weread_api.get_api_data()
     print(f"API reading data: {api_data}")
-    readTimes = {int(key): value for key, value in api_data.get("readTimes").items()}
+    # 只保留属于 "ll的书架" 中的书籍的记录
+    readTimes = {}
+    for book_id, time_data in api_data.get("readTimes", {}).items():
+        if book_id in ll_bookshelf_books:
+            readTimes[int(book_id)] = time_data
     now = pendulum.now("Asia/Shanghai").start_of("day")
     today_timestamp = now.int_timestamp
     if today_timestamp not in readTimes:
