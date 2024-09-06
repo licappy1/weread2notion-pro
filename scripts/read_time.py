@@ -113,25 +113,31 @@ if __name__ == "__main__":
 
     # 获取阅读时长数据
     api_data = weread_api.get_api_data()
-    print(f"Full API data: {json.dumps(api_data, indent=4)}")
+    # print(f"Full API data: {json.dumps(api_data, indent=4)}")
 
-    # 只保留属于 "ll的书架" 中的书籍的记录
+    # 正确地构建 readTimes，使其按书籍 ID 和时间戳存储
     readTimes = {}
     for book_id, time_data in api_data.get("readTimes", {}).items():
         if book_id in ll_bookshelf_books:
             for timestamp, duration in time_data.items():
-                readTimes[int(timestamp)] = duration
+                if book_id not in readTimes:
+                    readTimes[book_id] = {}
+                readTimes[book_id][int(timestamp)] = duration
+
 
     now = pendulum.now("Asia/Shanghai").start_of("day")
     today_timestamp = now.int_timestamp
-    if today_timestamp not in readTimes:
-        readTimes[today_timestamp] = 0
-    readTimes = dict(sorted(readTimes.items()))
+
+    for book_id in ll_bookshelf_books:
+        if book_id not in readTimes:
+            readTimes[book_id] = {}
+        if today_timestamp not in readTimes[book_id]:
+            readTimes[book_id][today_timestamp] = 0
+
     print(f"Filtered and sorted reading times: {readTimes}")
 
     # 处理 Notion 中的数据
     results = notion_helper.query_all(database_id=notion_helper.day_database_id)
-    print(f"Notion query results: {json.dumps(results, indent=4)}")
 
     # 先更新已有记录
     for result in results:
@@ -140,16 +146,17 @@ if __name__ == "__main__":
         id = result.get("id")
         book_id = result.get("properties").get("书籍").get("relation", [{}])[0].get("id")
 
-        if book_id in ll_bookshelf_books:  # 只更新 ll 的书架中的书籍
+        if book_id in ll_bookshelf_books and book_id in readTimes:  # 只更新 ll 的书架中的书籍
             print(f"Processing Notion page ID: {id}, Timestamp: {timestamp}, Duration: {duration}")
-            if timestamp in readTimes:
-                value = readTimes.pop(timestamp)
+            if timestamp in readTimes[book_id]:
+                value = readTimes[book_id].pop(timestamp)
                 if value != duration:
                     print(f"Updating Notion page ID: {id} with new duration: {value}")
                     insert_to_notion(page_id=id, timestamp=timestamp, duration=value)
-    
+
     # 插入新记录
-    for key, value in readTimes.items():
-        if key in ll_bookshelf_books:
-            print(f"Inserting new Notion page with timestamp: {key}, Duration: {value}")
-            insert_to_notion(None, int(key), value)
+    for book_id, times in readTimes.items():
+        for timestamp, value in times.items():
+            print(f"Inserting new Notion page with book_id: {book_id}, timestamp: {timestamp}, Duration: {value}")
+            insert_to_notion(None, int(timestamp), value)
+
