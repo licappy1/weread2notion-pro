@@ -17,7 +17,6 @@ BOOK_ICON_URL = "https://www.notion.so/icons/book_gray.svg"
 
 rating = {"poor": "⭐️", "fair": "⭐️⭐️⭐️", "good": "⭐️⭐️⭐️⭐️⭐️"}
 
-
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_douban_url(isbn):
     print(f"get_douban_url {isbn} ")
@@ -50,10 +49,9 @@ def insert_book_to_notion(books, index, bookId):
     if bookId in notion_books:
         book.update(notion_books.get(bookId))
     bookInfo = weread_api.get_bookinfo(bookId)
-    if bookInfo != None:
+    if bookInfo is not None:
         book.update(bookInfo)
     readInfo = weread_api.get_read_info(bookId)
-    # 研究了下这个状态不知道什么情况有的虽然读了状态还是1 markedStatus = 1 想读 4 读完 其他为在读
     readInfo.update(readInfo.get("readDetail", {}))
     readInfo.update(readInfo.get("bookInfo", {}))
     book.update(readInfo)
@@ -176,7 +174,7 @@ def insert_to_notion(page_id, timestamp, duration, book_database_id):
         "时间戳": utils.get_number(timestamp),
         "书架": utils.get_relation([book_database_id]),
     }
-    if page_id != None:
+    if page_id is not None:
         notion_helper.client.pages.update(page_id=page_id, properties=properties)
     else:
         notion_helper.client.pages.create(
@@ -191,20 +189,31 @@ if __name__ == "__main__":
     notion_helper = NotionHelper()
     notion_books = notion_helper.get_all_book()
     bookshelf_books = weread_api.get_bookshelf()
-    bookProgress = bookshelf_books.get("bookProgress")
-    bookProgress = {book.get("bookId"): book for book in bookProgress}
-    archive_dict = {}
-    for archive in bookshelf_books.get("archive"):
-        name = archive.get("name")
-        bookIds = archive.get("bookIds")
-        archive_dict.update({bookId: name for bookId in bookIds})
+
+    # 打印获取到的书架数据
+    print("Bookshelf Books:", bookshelf_books)
+
+    # 获取名为 "ll的书架" 的书籍
+    ll_bookshelf = next((shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll的书架"), None)
+
+    if ll_bookshelf:
+        print("Selected Bookshelf:", ll_bookshelf)  # 打印选中的书架信息
+
+        bookProgress = ll_bookshelf.get("bookProgress", [])
+        bookProgress = {book.get("bookId"): book for book in bookProgress}
+        archive_dict = {bookId: ll_bookshelf.get("name") for bookId in ll_bookshelf.get("bookIds", [])}
+    else:
+        bookProgress = {}
+        archive_dict = {}
+
+    print("Book Progress:", bookProgress)
+    print("Archive Dict:", archive_dict)
+
+    # 获取 "ll的书架" 中不需要同步的书籍
     not_need_sync = []
     for key, value in notion_books.items():
         if (
-            (
-                key not in bookProgress
-                or value.get("readingTime") == bookProgress.get(key).get("readingTime")
-            )
+            (key not in bookProgress or value.get("readingTime") == bookProgress.get(key, {}).get("readingTime"))
             and (archive_dict.get(key) == value.get("category"))
             and (value.get("cover") is not None)
             and (
@@ -213,10 +222,28 @@ if __name__ == "__main__":
             )
         ):
             not_need_sync.append(key)
+
+    # 获取 "ll的书架" 中的书籍
+    ll_bookshelf_books = set(ll_bookshelf.get("bookIds", []))
+    # 提取 "ll的书架" 中的书籍，并去重
+    # 获取所有笔记本中的书籍列表
     notebooks = weread_api.get_notebooklist()
-    notebooks = [d["bookId"] for d in notebooks if "bookId" in d]
-    books = bookshelf_books.get("books")
-    books = [d["bookId"] for d in books if "bookId" in d]
-    books = list((set(notebooks) | set(books)) - set(not_need_sync))
+    # 仅同步 "ll的书架" 中的书籍
+    books = list(ll_bookshelf_books - set(not_need_sync))
+    # 检查重复情况
+    # 打印书架中的所有书籍
+    print("All Books in 'll的书架':", ll_bookshelf_books)
+    print(f"去重后的书籍数量: {len(books)}")
+    print("Books to Sync:", books)
+    print("Notion Books:", notion_books)
+    print("Book Progress:", bookProgress)
+    for key, value in notion_books.items():
+        print(f"Checking book {key}:")
+        print(f"  Reading Time: {value.get('readingTime')} == {bookProgress.get(key, {}).get('readingTime')}")
+        print(f"  Archive Dict Category: {archive_dict.get(key)} == {value.get('category')}")
+        print(f"  Cover: {value.get('cover')}")
+        print(f"  Status: {value.get('status')} and My Rating: {value.get('myRating')}")
+
+    # 插入书籍到 Notion
     for index, bookId in enumerate(books):
         insert_book_to_notion(books, index, bookId)
