@@ -146,7 +146,11 @@ if __name__ == "__main__":
         timestamp = result.get("properties").get("时间戳").get("number")
         duration = result.get("properties").get("时长").get("number")
         id = result.get("id")
-        book_id = result.get("properties").get("书籍").get("relation", [{}])[0].get("id")
+        book_relation = result.get("properties").get("书籍")
+        if book_relation and book_relation.get("relation"):
+            book_id = book_relation.get("relation", [{}])[0].get("id")
+        else:
+            book_id = None
 
         if book_id in ll_bookshelf_books and book_id in readTimes:  # 只更新 ll 的书架中的书籍
             print(f"Processing Notion page ID: {id}, Timestamp: {timestamp}, Duration: {duration}")
@@ -162,5 +166,3 @@ if __name__ == "__main__":
             if timestamp not in existing_timestamps:
                 print(f"Inserting new Notion page with book_id: {book_id}, timestamp: {timestamp}, Duration: {value}")
                 insert_to_notion(None, int(timestamp), value)
-
-
