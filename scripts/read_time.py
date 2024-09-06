@@ -147,6 +147,7 @@ if __name__ == "__main__":
     
     # 插入新记录
     for key, value in readTimes.items():
-        if any(key in ll_bookshelf_books):
+        if key in ll_bookshelf_books:
             print(f"Inserting new Notion page with timestamp: {key}, Duration: {value}")
             insert_to_notion(None, int(key), value)
+
