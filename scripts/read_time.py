@@ -17,7 +17,7 @@ from utils import (
 )
 
 load_dotenv()  # 加载 .env 文件中的环境变量
-
+notion_token = os.getenv('NOTION_TOKEN')
 def insert_to_notion(page_id, timestamp, duration):
     parent = {"database_id": notion_helper.day_database_id, "type": "database_id"}
     properties = {
@@ -55,11 +55,9 @@ def insert_to_notion(page_id, timestamp, duration):
         ),
     }
     print(f"Inserting/updating Notion page with properties: {properties}")
-    if page_id is not None:
-        print(f"Updating page ID: {page_id}")
-        notion_helper.client.pages.update(page_id=page_id, properties=properties)
+    if page_id != None:
+            notion_helper.client.pages.update(page_id=page_id, properties=properties)
     else:
-        print("Creating new page in Notion")
         notion_helper.client.pages.create(
             parent=parent,
             icon=get_icon("https://www.notion.so/icons/target_red.svg"),
