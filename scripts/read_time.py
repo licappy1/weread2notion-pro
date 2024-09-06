@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     # 获取书架数据
     bookshelf_books = weread_api.get_bookshelf()
-    print(f"Bookshelf data: {bookshelf_books}")
+    print(f"Bookshelf data: {json.dumps(bookshelf_books, indent=4)}")
     ll_bookshelf = next((shelf for shelf in bookshelf_books.get("archive", []) if shelf.get("name") == "ll的书架"), None)
     if ll_bookshelf:
         ll_bookshelf_books = set(ll_bookshelf.get("bookIds", []))
@@ -113,22 +113,25 @@ if __name__ == "__main__":
 
     # 获取阅读时长数据
     api_data = weread_api.get_api_data()
-    print(f"API reading data: {api_data}")
+    print(f"Full API data: {json.dumps(api_data, indent=4)}")
+
     # 只保留属于 "ll的书架" 中的书籍的记录
     readTimes = {}
     for book_id, time_data in api_data.get("readTimes", {}).items():
         if book_id in ll_bookshelf_books:
-            readTimes[int(book_id)] = time_data
+            for timestamp, duration in time_data.items():
+                readTimes[int(timestamp)] = duration
+
     now = pendulum.now("Asia/Shanghai").start_of("day")
     today_timestamp = now.int_timestamp
     if today_timestamp not in readTimes:
         readTimes[today_timestamp] = 0
     readTimes = dict(sorted(readTimes.items()))
-    print(f"Sorted reading times: {readTimes}")
+    print(f"Filtered and sorted reading times: {readTimes}")
 
     # 处理 Notion 中的数据
     results = notion_helper.query_all(database_id=notion_helper.day_database_id)
-    print(f"Notion query results: {results}")
+    print(f"Notion query results: {json.dumps(results, indent=4)}")
 
     # 先更新已有记录
     for result in results:
@@ -150,4 +153,3 @@ if __name__ == "__main__":
         if key in ll_bookshelf_books:
             print(f"Inserting new Notion page with timestamp: {key}, Duration: {value}")
             insert_to_notion(None, int(key), value)
-
